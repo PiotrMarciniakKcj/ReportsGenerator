@@ -1,13 +1,6 @@
-import xlwings as xw
 import datetime as datetime
 from docxtpl import DocxTemplate
-
-
-# convert time from float to datetime
-def excel_time_to_datetime(excel_time):
-    SECONDS_PER_DAY = 86400
-    dt = datetime.datetime.utcfromtimestamp(excel_time * SECONDS_PER_DAY)
-    return dt.strftime("%H:%M:%S")
+from openpyxl import load_workbook
 
 
 # convert float to string value with '%'
@@ -15,28 +8,29 @@ def float_to_percent(value):
     return ('{:.2f}'.format(round((value * 100), 2)) + "%").replace('.', ',')
 
 
-# return formated table(without headers) from Excel as 2-dimensional array
+# return formated table(without headers) from Excel as a 2-dimensional array
 def get_and_format_data(start_cell, end_cell, path):
-    wb = xw.Book(path, read_only=True, )
-    sheet = wb.sheets[0]
-    table = sheet.range(start_cell, end_cell).value
+    wb = load_workbook(path)
+    sheet = wb.worksheets[0]
+    table = sheet[(start_cell + ":" + end_cell)]
+    new_table = []
     for row in table:
-        if row[0] == row[-1]:
+        temp_row = []
+        if row[0].value == row[-1].value:
+            # skip empty rows
             continue
-        if row != table[-1]:
-            row[0] = excel_time_to_datetime(row[0])
-            row[1] = excel_time_to_datetime(row[1])
-        else:
-            row[0] = ""
-        for x in range(2, len(row) - 1):
-            row[x] = int(row[x])
-        row[len(row) - 1] = float_to_percent(row[len(row) - 1])
-    for row in table:
-        if row[0] == row[-1]:
-            # delete empty rows
-            table.remove(row)
-    wb.close()
-    return table
+        for cell in row:
+            cell = cell.value
+            if cell is None:
+                cell = ''
+            if type(cell) is datetime.time:
+                cell = cell.strftime("%H:%M:%S")
+            temp_row.append(cell)
+        row = temp_row
+        row[len(row) - 1] = float_to_percent(float(row[len(row) - 1]))
+        new_table.append(row)
+    print(new_table)
+    return new_table
 
 
 # get YYYYMMDD date from the name of the Excel file
@@ -117,9 +111,9 @@ for table in formated_tables:
 d = float_to_percent((N_sum - em_sum - ef_sum) / N_sum)
 r = float_to_percent(Kok_sum / Nid_sum)
 
-summary_detection = [N_sum, em_sum, ef_sum, d]
-summary_identification = [Nid_sum, Kok_sum, r, rejected_sum]
-
+# 2-dimensional array with just one row
+summary_detection = [[N_sum, em_sum, ef_sum, d]]
+summary_identification = [[Nid_sum, Kok_sum, r, rejected_sum]]
 
 # pasting the tables
 paste_tables(formated_tables[0], DR_detection_table)
@@ -128,8 +122,7 @@ paste_tables(formated_tables[2], N_detection_table)
 paste_tables(formated_tables[3], N_identification_table)
 paste_tables(formated_tables[4], DP_detection_table)
 paste_tables(formated_tables[5], DP_identification_table)
-# doesn't work :(
-# paste_tables(summary_detection, summary_detection_table)
-# paste_tables(summary_identification, summary_identification_table)
+paste_tables(summary_detection, summary_detection_table)
+paste_tables(summary_identification, summary_identification_table)
 
 doc.save(output)
