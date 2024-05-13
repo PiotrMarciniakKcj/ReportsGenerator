@@ -8,13 +8,29 @@ def float_to_percent(value):
     return ('{:.2f}'.format(round((value * 100), 2)) + "%").replace('.', ',')
 
 
-# return formated table(without headers) from Excel as a 2-dimensional array
-def get_and_format_data(start_cell, end_cell, path):
+# return index of the last row of the table
+def enumerate_sheet(worksheet, max_val):
+    for i, i_row in enumerate(worksheet):
+        if i_row[max_val].value == "Suma:":
+            return str(i+1)
+
+
+# return formatted tables from an Excel file
+def get_formatted_data(path):
     wb = load_workbook(path)
     sheet = wb.worksheets[0]
-    table = sheet[(start_cell + ":" + end_cell)]
+    tables_from_excel = [format_data("I2:N" + enumerate_sheet(sheet, 9), path),
+                         format_data("R2:X" + enumerate_sheet(sheet, 18), path)]
+    return tables_from_excel
+
+
+# return formatted table(without headers) from Excel as a 2-dimensional array from an index input
+def format_data(indexes, path):
+    wb = load_workbook(path)
+    sheet = wb.worksheets[0]
+    input_table = sheet[indexes]
     new_table = []
-    for row in table:
+    for row in input_table:
         temp_row = []
         if row[0].value == row[-1].value:
             # skip empty rows
@@ -29,7 +45,7 @@ def get_and_format_data(start_cell, end_cell, path):
         row = temp_row
         row[len(row) - 1] = float_to_percent(float(row[len(row) - 1]))
         new_table.append(row)
-    print(new_table)
+    print(new_table[-1])
     return new_table
 
 
@@ -40,11 +56,16 @@ def get_date(filename):
 
 
 # copy the contents of the tables from Excel and paste them into the word template
-def paste_tables(formated_data, table_name):
+def paste_tables(formated_data, table_name, is_summary=False):
     for data_row in formated_data:
-        table_row = table_name.add_row().cells
-        for x in range(0, len(data_row)):
-            table_row[x].text = str(data_row[x])
+        if is_summary:
+            row = table_name.rows[1].cells
+            for x in range(0, 4):
+                row[x].text = str(data_row[x])
+        else:
+            table_row = table_name.add_row().cells
+            for x in range(0, len(data_row)):
+                table_row[x].text = str(data_row[x])
 
 
 # paths to Excel files
@@ -81,14 +102,11 @@ summary_detection_table = tables[6]
 summary_identification_table = tables[7]
 
 # getting the tables from the Excel files
-formated_tables = [
-    get_and_format_data('I2', 'N9', DR_excel),
-    get_and_format_data('R2', 'X9', DR_excel),
-    get_and_format_data('I2', 'N18', N_excel),
-    get_and_format_data('R2', 'X18', N_excel),
-    get_and_format_data('I2', 'N8', DP_excel),
-    get_and_format_data('R2', 'X8', DP_excel)
-]
+formatted_tables = get_formatted_data(DR_excel)
+formatted_tables.extend(get_formatted_data(DP_excel))
+formatted_tables.extend(get_formatted_data(N_excel))
+
+print(formatted_tables)
 
 N_sum = 0
 em_sum = 0
@@ -98,8 +116,8 @@ Nid_sum = 0
 Kok_sum = 0
 rejected_sum = 0
 
-for table in formated_tables:
-    if formated_tables.index(table) % 2 == 0:
+for table in formatted_tables:
+    if formatted_tables.index(table) % 2 == 0:
         N_sum += table[-1][2]
         em_sum += table[-1][3]
         ef_sum += table[-1][4]
@@ -116,13 +134,13 @@ summary_detection = [[N_sum, em_sum, ef_sum, d]]
 summary_identification = [[Nid_sum, Kok_sum, r, rejected_sum]]
 
 # pasting the tables
-paste_tables(formated_tables[0], DR_detection_table)
-paste_tables(formated_tables[1], DR_identification_table)
-paste_tables(formated_tables[2], N_detection_table)
-paste_tables(formated_tables[3], N_identification_table)
-paste_tables(formated_tables[4], DP_detection_table)
-paste_tables(formated_tables[5], DP_identification_table)
-paste_tables(summary_detection, summary_detection_table)
-paste_tables(summary_identification, summary_identification_table)
+paste_tables(formatted_tables[0], DR_detection_table)
+paste_tables(formatted_tables[1], DR_identification_table)
+paste_tables(formatted_tables[2], N_detection_table)
+paste_tables(formatted_tables[3], N_identification_table)
+paste_tables(formatted_tables[4], DP_detection_table)
+paste_tables(formatted_tables[5], DP_identification_table)
+paste_tables(summary_detection, summary_detection_table, True)
+paste_tables(summary_identification, summary_identification_table, True)
 
 doc.save(output)
