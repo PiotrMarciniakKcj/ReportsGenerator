@@ -45,7 +45,6 @@ def format_data(indexes, path):
         row = temp_row
         row[len(row) - 1] = float_to_percent(float(row[len(row) - 1]))
         new_table.append(row)
-    print(new_table[-1])
     return new_table
 
 
@@ -83,13 +82,14 @@ order = [DR_date, DP_date, N_date]
 order.sort()
 
 # path to template file
-template = "template.docx"
+template = "Raport z testu kamer ANPR Krzykosy 2023_template.docx"
 output = "output.docx"
 
 doc = DocxTemplate(template)
 doc.render({})
 
 tables = doc.tables
+print(tables)
 
 # assigning correct table order
 DR_detection_table = tables[order.index(DR_date) * 2]
