@@ -1,5 +1,5 @@
 import datetime as datetime
-from docxtpl import DocxTemplate
+from docx import Document
 from openpyxl import load_workbook
 
 
@@ -85,28 +85,25 @@ order.sort()
 template = "Raport z testu kamer ANPR Krzykosy 2023_template.docx"
 output = "output.docx"
 
-doc = DocxTemplate(template)
-doc.render({})
+doc = Document(template)
 
 tables = doc.tables
-print(tables)
 
 # assigning correct table order
-DR_detection_table = tables[order.index(DR_date) * 2]
-DR_identification_table = tables[order.index(DR_date) * 2 + 1]
-DP_detection_table = tables[order.index(DP_date) * 2]
-DP_identification_table = tables[order.index(DP_date) * 2 + 1]
-N_detection_table = tables[order.index(N_date) * 2]
-N_identification_table = tables[order.index(N_date) * 2 + 1]
-summary_detection_table = tables[6]
-summary_identification_table = tables[7]
+DR_detection_table = tables[(order.index(DR_date) * 2)-8]
+DR_identification_table = tables[(order.index(DR_date) * 2 + 1)-8]
+DP_detection_table = tables[(order.index(DP_date) * 2)-8]
+DP_identification_table = tables[(order.index(DP_date) * 2 + 1)-8]
+N_detection_table = tables[(order.index(N_date) * 2)-8]
+N_identification_table = tables[(order.index(N_date) * 2 + 1)-8]
+summary_detection_table = tables[-2]
+summary_identification_table = tables[-1]
 
 # getting the tables from the Excel files
 formatted_tables = get_formatted_data(DR_excel)
 formatted_tables.extend(get_formatted_data(DP_excel))
 formatted_tables.extend(get_formatted_data(N_excel))
 
-print(formatted_tables)
 
 N_sum = 0
 em_sum = 0
