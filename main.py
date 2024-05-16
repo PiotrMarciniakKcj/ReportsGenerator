@@ -1,11 +1,10 @@
 import datetime as datetime
-import lxml
 from docx import Document
 from docx.shared import Cm
 from openpyxl import load_workbook
 from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-import docx.oxml.ns as ns
+from datetime import timedelta
 
 
 # convert float to string value with '%'
@@ -56,6 +55,8 @@ def format_data(indexes, path):
 # get YYYYMMDD date from the name of the Excel file
 def get_date(filename):
     date = filename[filename.find("_") + 1:filename.rfind("_", 0, filename.rfind("_"))]
+    date = datetime.datetime(int(date[0:4]), int(date[4:6]), int(date[6:8]), int(date[9:11]), int(date[11:13]),
+                             int(date[13:15]))
     return date
 
 
@@ -82,18 +83,33 @@ def paste_tables(formated_data, table_name, is_summary=False):
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
 
 
+# return a formatted string of the test start description
+def get_test_start_text(date, temperature="temperature", weather="weather"):
+    text = "Rozpoczęcie testu: " + date.strftime("%d.%m.%Y") + ", godz. " + (
+            date + timedelta(hours=2)).strftime("%H:%M:%S") + " (" + date.strftime(
+        "%H:%M:%S") + " UTC); temp: ok. " + str(temperature) + " st., " + weather + "."
+    return text
 
+
+# replace template elements with correct ones
 def format_document(document):
     DR_text = 'Badanie w okresie przed południem (DR500)'
     DP_text = 'Badanie w okresie po południu (DP500)'
     N_text = 'Badanie w okresie nocnym (N200)'
+
+    DR_test_start_text = get_test_start_text(DR_date)
+    DP_test_start_text = get_test_start_text(DP_date)
+    N_test_start_text = get_test_start_text(N_date)
+
     if order[0] == DR_date:
         text_list = [DR_text, DP_text, N_text]
+        test_start_text_list = [DR_test_start_text, DP_test_start_text, N_test_start_text]
     elif order[0] == DP_date:
         text_list = [DP_text, N_text, DR_text]
-    elif order[0] == N_date:
+        test_start_text_list = [DP_test_start_text, N_test_start_text, DR_test_start_text]
+    else:
         text_list = [N_text, DR_text, DP_text]
-    print(order)
+        test_start_text_list = [N_test_start_text, DR_test_start_text, DP_test_start_text]
     for paragraph in document.paragraphs:
         if 'order1' in paragraph.text:
             paragraph.text = text_list[0]
@@ -101,11 +117,51 @@ def format_document(document):
             paragraph.text = text_list[1]
         if 'order3' in paragraph.text:
             paragraph.text = text_list[2]
+        if 'description1' in paragraph.text:
+            paragraph.text = test_start_text_list[0]
+        if 'description2' in paragraph.text:
+            paragraph.text = test_start_text_list[1]
+        if 'description3' in paragraph.text:
+            paragraph.text = test_start_text_list[2]
+        if 'today' in paragraph.text:
+            paragraph.text = "Poznań, " + datetime.date.today().strftime("%d.%m.%Y")
+    body_elements = document._body._body
+    rs = body_elements.xpath('//w:r')
+    # changing elements in the table of contents
+    for r in rs:
+        if r.text == "toc1":
+            r.text = text_list[0]
+        if r.text == "toc2":
+            r.text = text_list[1]
+        if r.text == "toc3":
+            r.text = text_list[2]
 
 
+def get_summary_tables(tables):
+    N_sum = 0
+    em_sum = 0
+    ef_sum = 0
 
+    Nid_sum = 0
+    Kok_sum = 0
+    rejected_sum = 0
+    for table in tables:
+        if tables.index(table) % 2 == 0:
+            N_sum += table[-1][2]
+            em_sum += table[-1][3]
+            ef_sum += table[-1][4]
+        else:
+            Nid_sum += table[-1][2]
+            Kok_sum += table[-1][3]
+            rejected_sum += table[-1][5]
 
+    d = float_to_percent((N_sum - em_sum - ef_sum) / N_sum)
+    r = float_to_percent(Kok_sum / Nid_sum)
 
+    # 2-dimensional array with just one row
+    summary_detection = [[N_sum, em_sum, ef_sum, d]]
+    summary_identification = [[Nid_sum, Kok_sum, r, rejected_sum]]
+    return [summary_detection, summary_identification]
 
 # paths to Excel files
 DR_excel = "102_20230516_090002_DR500_wClass.xlsx"
@@ -126,7 +182,6 @@ template = "Raport z testu kamer ANPR Krzykosy 2023_template.docx"
 output = "output.docx"
 
 doc = Document(template)
-
 tables = doc.tables
 
 # assigning correct table order
@@ -144,30 +199,7 @@ formatted_tables = get_formatted_data(DR_excel)
 formatted_tables.extend(get_formatted_data(DP_excel))
 formatted_tables.extend(get_formatted_data(N_excel))
 
-N_sum = 0
-em_sum = 0
-ef_sum = 0
-
-Nid_sum = 0
-Kok_sum = 0
-rejected_sum = 0
-
-for table in formatted_tables:
-    if formatted_tables.index(table) % 2 == 0:
-        N_sum += table[-1][2]
-        em_sum += table[-1][3]
-        ef_sum += table[-1][4]
-    else:
-        Nid_sum += table[-1][2]
-        Kok_sum += table[-1][3]
-        rejected_sum += table[-1][5]
-
-d = float_to_percent((N_sum - em_sum - ef_sum) / N_sum)
-r = float_to_percent(Kok_sum / Nid_sum)
-
-# 2-dimensional array with just one row
-summary_detection = [[N_sum, em_sum, ef_sum, d]]
-summary_identification = [[Nid_sum, Kok_sum, r, rejected_sum]]
+summary_tables = get_summary_tables(formatted_tables)
 
 # pasting the tables
 paste_tables(formatted_tables[0], DR_detection_table)
@@ -176,8 +208,8 @@ paste_tables(formatted_tables[2], DP_detection_table)
 paste_tables(formatted_tables[3], DP_identification_table)
 paste_tables(formatted_tables[4], N_detection_table)
 paste_tables(formatted_tables[5], N_identification_table)
-paste_tables(summary_detection, summary_detection_table, True)
-paste_tables(summary_identification, summary_identification_table, True)
+paste_tables(summary_tables[0], summary_detection_table, True)
+paste_tables(summary_tables[1], summary_identification_table, True)
 
 format_document(doc)
 
