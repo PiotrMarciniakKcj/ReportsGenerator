@@ -137,6 +137,7 @@ def format_document(document):
             r.text = text_list[2]
 
 
+# get summary tables
 def get_summary_tables(tables):
     N_sum = 0
     em_sum = 0
@@ -163,6 +164,7 @@ def get_summary_tables(tables):
     summary_identification = [[Nid_sum, Kok_sum, r, rejected_sum]]
     return [summary_detection, summary_identification]
 
+
 # paths to Excel files
 DR_excel = "102_20230516_090002_DR500_wClass.xlsx"
 DP_excel = "102_20230516_140007_DP500_wClass.xlsx"
@@ -178,8 +180,8 @@ order = [DR_date, DP_date, N_date]
 order.sort()
 
 # path to template file
-template = "Raport z testu kamer ANPR Krzykosy 2023_template.docx"
-output = "output.docx"
+template = "Raport z testu kamer ANPR Krzykosy_template.docx"
+output = template[0:-14] + " " + datetime.date.today().strftime("%Y") + ".docx"
 
 doc = Document(template)
 tables = doc.tables
