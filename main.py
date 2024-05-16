@@ -165,6 +165,30 @@ def get_summary_tables(tables):
     return [summary_detection, summary_identification]
 
 
+# check and write to file whether OPZ requirements are met
+def check_d_and_r(summary):
+    check_d = True
+    check_r = True
+    if float(summary[0][0][3].replace(",", ".").replace("%", "")) < 95:
+        check_d = False
+    if float(summary[1][0][2].replace(",", ".").replace("%", "")) < 90:
+        check_r = False
+    if check_d:
+        if check_r:
+            doc.add_paragraph(
+                "System spełnia wymagania OPZ w zakresie poziomów detekcji i identyfikacji tablic rejestracyjnych.")
+        else:
+            doc.add_paragraph("System spełnia wymagania OPZ w zakresie poziomów detekcji.")
+            doc.add_paragraph(
+                "System nie spełnia wymagania OPZ w zakresie poziomów identyfikacji tablic rejestracyjnych.")
+    elif check_r:
+        doc.add_paragraph("System nie spełnia wymagania OPZ w zakresie poziomów detekcji.")
+        doc.add_paragraph("System spełnia wymagania OPZ w zakresie poziomów identyfikacji tablic rejestracyjnych.")
+    else:
+        doc.add_paragraph(
+            "System nie spełnia wymagania OPZ w zakresie poziomów detekcji i identyfikacji tablic rejestracyjnych.")
+
+
 # paths to Excel files
 DR_excel = "102_20230516_090002_DR500_wClass.xlsx"
 DP_excel = "102_20230516_140007_DP500_wClass.xlsx"
@@ -214,5 +238,5 @@ paste_tables(summary_tables[0], summary_detection_table, True)
 paste_tables(summary_tables[1], summary_identification_table, True)
 
 format_document(doc)
-
+check_d_and_r(summary_tables)
 doc.save(output)
