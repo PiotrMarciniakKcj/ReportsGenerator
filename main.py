@@ -1,10 +1,12 @@
 import datetime as datetime
+from calendar import monthcalendar
 from docx import Document
 from docx.shared import Cm
 from openpyxl import load_workbook
 from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import timedelta
+from meteostat import Hourly, Stations
 
 
 # convert float to string value with '%'
@@ -83,11 +85,47 @@ def paste_tables(formated_data, table_name, is_summary=False):
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
 
 
+# get temperature
+def get_temperature(date, point_x, point_y, point_z=None):
+    stations = Stations()
+    stations = stations.nearby(point_x, point_y, point_z)
+    station = stations.fetch(1)
+    start = date - timedelta(days=1)
+    end = date + timedelta(days=1)
+    data = Hourly(station, start, end)
+    data = data.fetch()
+
+    differences = [abs(date - time) for time in data.index]
+    minimum = min(differences)
+    closest_date = data.index[differences.index(minimum)]
+
+    temperature = data.loc[closest_date]['temp']
+    return round(temperature)
+
+
+# get last sunday of the month
+def get_last_sunday(date, input_month):
+    month = monthcalendar(date.year, input_month)
+    if month[-1][6]:
+        return month[-1][-2]
+    else:
+        return month[-2][-1]
+
+
+# check whether it is the winter time or summer time and return how many hours to add
+def add_hours(date):
+    winter_time_start = datetime.datetime(date.year, 10, get_last_sunday(date, 10), 0)
+    winter_time_end = datetime.datetime(date.year, 3, get_last_sunday(date, 3), 0)
+    if date > winter_time_start or date < winter_time_end:
+        return 1
+    return 2
+
+
 # return a formatted string of the test start description
-def get_test_start_text(date, temperature="temperature", weather="weather"):
+def get_test_start_text(date, point_x, point_y, point_z=None, weather="weather"):
     text = "Rozpoczęcie testu: " + date.strftime("%d.%m.%Y") + ", godz. " + (
-            date + timedelta(hours=2)).strftime("%H:%M:%S") + " (" + date.strftime(
-        "%H:%M:%S") + " UTC); temp: ok. " + str(temperature) + " st., " + weather + "."
+            date + timedelta(hours=add_hours(date))).strftime("%H:%M:%S") + " (" + date.strftime(
+        "%H:%M:%S") + " UTC); temp: ok. " + str(get_temperature(date,point_x, point_y, point_z )) + " st., " + weather + "."
     return text
 
 
@@ -97,9 +135,11 @@ def format_document(document):
     DP_text = 'Badanie w okresie po południu (DP500)'
     N_text = 'Badanie w okresie nocnym (N200)'
 
-    DR_test_start_text = get_test_start_text(DR_date)
-    DP_test_start_text = get_test_start_text(DP_date)
-    N_test_start_text = get_test_start_text(N_date)
+    x = 52.07199
+    y = 17.23126
+    DR_test_start_text = get_test_start_text(DR_date, x, y)
+    DP_test_start_text = get_test_start_text(DP_date, x, y)
+    N_test_start_text = get_test_start_text(N_date, x, y)
 
     if order[0] == DR_date:
         text_list = [DR_text, DP_text, N_text]
