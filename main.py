@@ -99,7 +99,7 @@ def get_weather(date, x_coordinate, y_coordinate):
     UnitGroup = 'metric'
 
     # Location for the weather data
-    Location = str(x_coordinate) + ", " + str(y_coordinate)
+    Location = str(x_coordinate) + "," + str(y_coordinate)
 
     date = date + timedelta(hours=2)
     # Optional start and end dates
