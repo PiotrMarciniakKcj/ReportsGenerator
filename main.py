@@ -6,7 +6,11 @@ from openpyxl import load_workbook
 from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import timedelta
-from meteostat import Hourly, Stations
+import csv
+import codecs
+import urllib.request
+import urllib.error
+import sys
 
 
 # convert float to string value with '%'
@@ -85,6 +89,106 @@ def paste_tables(formated_data, table_name, is_summary=False):
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
 
 
+# get weather
+def get_weather(date, x_coordinate, y_coordinate):
+    # This is the core of our weather query URL
+    BaseURL = 'https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/'
+
+    ApiKey = '5ZRVAYDXFUCTLPHARB5M9JMVJ'
+    # UnitGroup sets the units of the output - us or metric
+    UnitGroup = 'metric'
+
+    # Location for the weather data
+    Location = str(x_coordinate) + ", " + str(y_coordinate)
+
+    date = date + timedelta(hours=2)
+    # Optional start and end dates
+    # If nothing is specified, the forecast is retrieved.
+    # If start date only is specified, a single historical or forecast day will be retrieved
+    # If both start and end date are specified, a date range will be retrieved
+    StartDate = date.strftime("%Y-%m-%dT%H:%M:%S")
+    EndDate = ''
+
+    # JSON or CSV
+    # JSON format supports daily, hourly, current conditions, weather alerts and events in a single JSON package
+    # CSV format requires an 'include' parameter below to indicate which table section is required
+    ContentType = "csv"
+
+    # include sections
+    # values include days,hours,current,alerts
+    Include = "current&elements=datetime,temp,conditions"
+
+    # basic query including location
+    ApiQuery = BaseURL + Location
+
+    # append the start and end date if present
+    if len(StartDate):
+        ApiQuery += "/" + StartDate
+        if len(EndDate):
+            ApiQuery += "/" + EndDate
+
+    # Url is completed. Now add query parameters (could be passed as GET or POST)
+    ApiQuery += "?"
+
+    # append each parameter as necessary
+    if len(UnitGroup):
+        ApiQuery += "&unitGroup=" + UnitGroup
+
+    if len(ContentType):
+        ApiQuery += "&contentType=" + ContentType
+
+    if len(Include):
+        ApiQuery += "&include=" + Include
+    ApiQuery += "&lang=pl"
+    ApiQuery += "&key=" + ApiKey
+
+    # print(' - Running query URL: ', ApiQuery)
+    # print()
+
+    try:
+        CSVBytes = urllib.request.urlopen(ApiQuery)
+    except urllib.error.HTTPError as e:
+        ErrorInfo = e.read().decode()
+        print('Error code: ', e.code, ErrorInfo)
+        sys.exit()
+    except urllib.error.URLError as e:
+        ErrorInfo = e.read().decode()
+        print('Error code: ', e.code, ErrorInfo)
+        sys.exit()
+
+    # Parse the results as CSV
+    CSVText = csv.reader(codecs.iterdecode(CSVBytes, 'utf-8'))
+
+    RowIndex = 0
+
+    # The first row contain the headers and the additional rows each contain the weather metrics for a single day
+    for Row in CSVText:
+        if RowIndex == 0:
+            FirstRow = Row
+        else:
+            # print('Weather in ', Row[0], ' on ', Row[1], ', ', Row[2])
+            return [Row[1], Row[2]]
+            ColIndex = 0
+            for Col in Row:
+                if ColIndex >= 4:
+                    print('   ', FirstRow[ColIndex], ' = ', Row[ColIndex])
+                ColIndex += 1
+        RowIndex += 1
+
+    # If there are no CSV rows then something fundamental went wrong
+    if RowIndex == 0:
+        print('Sorry, but it appears that there was an error connecting to the weather server.')
+        print('Please check your network connection and try again..')
+
+    # If there is only one CSV  row then we likely got an error from the server
+    if RowIndex == 1:
+        print('Sorry, but it appears that there was an error retrieving the weather data.')
+        print('Error: ', FirstRow)
+
+    print()
+
+
+'''
 # get temperature
 def get_temperature(date, point_x, point_y, point_z=None):
     stations = Stations()
@@ -101,6 +205,7 @@ def get_temperature(date, point_x, point_y, point_z=None):
 
     temperature = data.loc[closest_date]['temp']
     return round(temperature)
+'''
 
 
 # get last sunday of the month
@@ -122,15 +227,16 @@ def add_hours(date):
 
 
 # return a formatted string of the test start description
-def get_test_start_text(date, point_x, point_y, point_z=None, weather="weather"):
+def get_test_start_text(date, point_x, point_y):
+    weather = get_weather(date, point_x, point_y)
     text = "Rozpoczęcie testu: " + date.strftime("%d.%m.%Y") + ", godz. " + (
             date + timedelta(hours=add_hours(date))).strftime("%H:%M:%S") + " (" + date.strftime(
-        "%H:%M:%S") + " UTC); temp: ok. " + str(get_temperature(date,point_x, point_y, point_z )) + " st., " + weather + "."
+        "%H:%M:%S") + " UTC); temp: ok. " + str(round(float(weather[0]))) + " st., " + weather[1] + "."
     return text
 
 
 # replace template elements with correct ones
-def format_document(document):
+def format_document(document, DR_date, DP_date, N_date, order):
     DR_text = 'Badanie w okresie przed południem (DR500)'
     DP_text = 'Badanie w okresie po południu (DP500)'
     N_text = 'Badanie w okresie nocnym (N200)'
@@ -206,10 +312,10 @@ def get_summary_tables(tables):
 
 
 # check and write to file whether OPZ requirements are met
-def check_d_and_r(summary):
+def check_d_and_r(summary, doc):
     check_d = True
     check_r = True
-    if float(summary[0][0][3].replace(",", ".").replace("%", "")) < 95:
+    if float(summary[0][0][3].replace(",", ".").replace("%", "")) < 99:
         check_d = False
     if float(summary[1][0][2].replace(",", ".").replace("%", "")) < 90:
         check_r = False
@@ -229,54 +335,58 @@ def check_d_and_r(summary):
             "System nie spełnia wymagania OPZ w zakresie poziomów detekcji i identyfikacji tablic rejestracyjnych.")
 
 
-# paths to Excel files
-DR_excel = "102_20230516_090002_DR500_wClass.xlsx"
-DP_excel = "102_20230516_140007_DP500_wClass.xlsx"
-N_excel = "102_20230515_210000_N200_wClass.xlsx"
+# generate report with detection and identification only
+def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
+    # dates of the tests
+    DR_date = get_date(DR_excel)
+    DP_date = get_date(DP_excel)
+    N_date = get_date(N_excel)
 
-# dates of the tests
-DR_date = get_date(DR_excel)
-DP_date = get_date(DP_excel)
-N_date = get_date(N_excel)
+    # correct order of the tests
+    order = [DR_date, DP_date, N_date]
+    order.sort()
 
-# correct order of the tests
-order = [DR_date, DP_date, N_date]
-order.sort()
+    # path to template file
+    template = "Raport z testu kamer ANPR Krzykosy_template.docx"
+    output = template[0:-14] + " " + datetime.date.today().strftime("%Y") + ".docx"
 
-# path to template file
-template = "Raport z testu kamer ANPR Krzykosy_template.docx"
-output = template[0:-14] + " " + datetime.date.today().strftime("%Y") + ".docx"
+    doc = Document(template)
+    tables = doc.tables
 
-doc = Document(template)
-tables = doc.tables
+    # assigning correct table order
+    DR_detection_table = tables[(order.index(DR_date) * 2) - 8]
+    DR_identification_table = tables[(order.index(DR_date) * 2 + 1) - 8]
+    DP_detection_table = tables[(order.index(DP_date) * 2) - 8]
+    DP_identification_table = tables[(order.index(DP_date) * 2 + 1) - 8]
+    N_detection_table = tables[(order.index(N_date) * 2) - 8]
+    N_identification_table = tables[(order.index(N_date) * 2 + 1) - 8]
+    summary_detection_table = tables[-2]
+    summary_identification_table = tables[-1]
 
-# assigning correct table order
-DR_detection_table = tables[(order.index(DR_date) * 2) - 8]
-DR_identification_table = tables[(order.index(DR_date) * 2 + 1) - 8]
-DP_detection_table = tables[(order.index(DP_date) * 2) - 8]
-DP_identification_table = tables[(order.index(DP_date) * 2 + 1) - 8]
-N_detection_table = tables[(order.index(N_date) * 2) - 8]
-N_identification_table = tables[(order.index(N_date) * 2 + 1) - 8]
-summary_detection_table = tables[-2]
-summary_identification_table = tables[-1]
+    # getting the tables from the Excel files
+    formatted_tables = get_formatted_data(DR_excel)
+    formatted_tables.extend(get_formatted_data(DP_excel))
+    formatted_tables.extend(get_formatted_data(N_excel))
 
-# getting the tables from the Excel files
-formatted_tables = get_formatted_data(DR_excel)
-formatted_tables.extend(get_formatted_data(DP_excel))
-formatted_tables.extend(get_formatted_data(N_excel))
+    summary_tables = get_summary_tables(formatted_tables)
 
-summary_tables = get_summary_tables(formatted_tables)
+    # pasting the tables
+    paste_tables(formatted_tables[0], DR_detection_table)
+    paste_tables(formatted_tables[1], DR_identification_table)
+    paste_tables(formatted_tables[2], DP_detection_table)
+    paste_tables(formatted_tables[3], DP_identification_table)
+    paste_tables(formatted_tables[4], N_detection_table)
+    paste_tables(formatted_tables[5], N_identification_table)
+    paste_tables(summary_tables[0], summary_detection_table, True)
+    paste_tables(summary_tables[1], summary_identification_table, True)
 
-# pasting the tables
-paste_tables(formatted_tables[0], DR_detection_table)
-paste_tables(formatted_tables[1], DR_identification_table)
-paste_tables(formatted_tables[2], DP_detection_table)
-paste_tables(formatted_tables[3], DP_identification_table)
-paste_tables(formatted_tables[4], N_detection_table)
-paste_tables(formatted_tables[5], N_identification_table)
-paste_tables(summary_tables[0], summary_detection_table, True)
-paste_tables(summary_tables[1], summary_identification_table, True)
+    format_document(doc, DR_date, DP_date, N_date, order)
+    check_d_and_r(summary_tables, doc)
+    doc.save(output)
 
-format_document(doc)
-check_d_and_r(summary_tables)
-doc.save(output)
+
+DR_path = "102_20230516_090002_DR500_wClass.xlsx"
+DP_path = "102_20230516_140007_DP500_wClass.xlsx"
+N_path = "102_20230515_210000_N200_wClass.xlsx"
+
+generate_detection_and_identification_report(DR_path, DP_path, N_path)
