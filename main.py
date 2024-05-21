@@ -353,6 +353,10 @@ def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
     doc = Document(template)
     tables = doc.tables
 
+    for table in tables:
+        for row in table.rows:
+            for cell in row:
+                print(cell)
     # assigning correct table order
     DR_detection_table = tables[(order.index(DR_date) * 2) - 8]
     DR_identification_table = tables[(order.index(DR_date) * 2 + 1) - 8]
@@ -383,6 +387,7 @@ def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
     format_document(doc, DR_date, DP_date, N_date, order)
     check_d_and_r(summary_tables, doc)
     doc.save(output)
+
 
 
 DR_path = "102_20230516_090002_DR500_wClass.xlsx"
