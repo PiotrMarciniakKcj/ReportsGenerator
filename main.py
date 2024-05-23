@@ -350,29 +350,25 @@ def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
     template = "Raport z testu kamer ANPR Krzykosy_template.docx"
     output = template[0:-14] + " " + datetime.date.today().strftime("%Y") + ".docx"
 
-    doc = Document(template)
-    tables = doc.tables
-
-    for table in tables:
-        for row in table.rows:
-            for cell in row:
-                print(cell)
-    # assigning correct table order
-    DR_detection_table = tables[(order.index(DR_date) * 2) - 8]
-    DR_identification_table = tables[(order.index(DR_date) * 2 + 1) - 8]
-    DP_detection_table = tables[(order.index(DP_date) * 2) - 8]
-    DP_identification_table = tables[(order.index(DP_date) * 2 + 1) - 8]
-    N_detection_table = tables[(order.index(N_date) * 2) - 8]
-    N_identification_table = tables[(order.index(N_date) * 2 + 1) - 8]
-    summary_detection_table = tables[-2]
-    summary_identification_table = tables[-1]
-
     # getting the tables from the Excel files
     formatted_tables = get_formatted_data(DR_excel)
     formatted_tables.extend(get_formatted_data(DP_excel))
     formatted_tables.extend(get_formatted_data(N_excel))
-
     summary_tables = get_summary_tables(formatted_tables)
+
+    doc = Document(template)
+    tables = doc.tables[2:]
+
+
+    # assigning correct table order
+    DR_detection_table = tables[(order.index(DR_date) * 2)]
+    DR_identification_table = tables[(order.index(DR_date) * 2 + 1)]
+    DP_detection_table = tables[(order.index(DP_date) * 2)]
+    DP_identification_table = tables[(order.index(DP_date) * 2 + 1)]
+    N_detection_table = tables[(order.index(N_date) * 2)]
+    N_identification_table = tables[(order.index(N_date) * 2 + 1)]
+    summary_detection_table = tables[-2]
+    summary_identification_table = tables[-1]
 
     # pasting the tables
     paste_tables(formatted_tables[0], DR_detection_table)
@@ -388,6 +384,82 @@ def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
     check_d_and_r(summary_tables, doc)
     doc.save(output)
 
+
+# generate report with classification
+def generate_classification_report(paths):
+    # dates of the tests
+    DR_date = get_date(paths[0])
+    DP_date = get_date(paths[1])
+    N_date = get_date(paths[2])
+    DR_date2 = get_date(paths[3])
+    DP_date2 = get_date(paths[4])
+    N_date2 = get_date(paths[5])
+
+    # correct order of the tests
+    order = [DR_date, DP_date, N_date]
+    order.sort()
+
+    # path to template file
+    template = "Raport z testu kamer ANPR Mostki_template.docx"
+    output = template[0:-14] + " " + datetime.date.today().strftime("%Y") + ".docx"
+
+    # getting the tables from the Excel files
+    formatted_tables = get_formatted_data(paths[0])
+    formatted_tables.extend(get_formatted_data(paths[1]))
+    formatted_tables.extend(get_formatted_data(paths[2]))
+    summary_table = get_summary_tables(formatted_tables)
+    formatted_tables2 = get_formatted_data(paths[3])
+    formatted_tables2.extend(get_formatted_data(paths[4]))
+    formatted_tables2.extend(get_formatted_data(paths[5]))
+    summary_table2 = get_summary_tables(formatted_tables2)
+
+    doc = Document(template)
+    tables = doc.tables[2:]
+
+    # getting the identification tables in word
+    DR_identification_table = tables[order.index(DR_date)]
+    DP_identification_table = tables[order.index(DP_date)]
+    N_identification_table = tables[order.index(N_date)]
+    DR_identification_table2 = tables[order.index(DR_date2)+4]
+    DP_identification_table2 = tables[order.index(DP_date2)+4]
+    N_identification_table2 = tables[order.index(N_date2)+4]
+    summary_identification_table = tables[3]
+    summary_identification_table2 = tables[7]
+
+    # pasting the identification tables
+    paste_tables(formatted_tables[1], DR_identification_table)
+    paste_tables(formatted_tables[3], DP_identification_table)
+    paste_tables(formatted_tables[5], N_identification_table)
+    paste_tables(summary_table[1], summary_identification_table, True)
+
+    paste_tables(formatted_tables2[1], DR_identification_table2)
+    paste_tables(formatted_tables2[3], DP_identification_table2)
+    paste_tables(formatted_tables2[5], N_identification_table2)
+    paste_tables(summary_table2[1], summary_identification_table2, True)
+
+    # getting the detection tables in word
+    DR_detection_table = tables[order.index(DR_date)+9]
+    DP_detection_table = tables[order.index(DP_date)+9]
+    N_detection_table = tables[order.index(N_date)+9]
+    DR_detection_table2 = tables[order.index(DR_date2) + 13]
+    DP_detection_table2 = tables[order.index(DP_date2) + 13]
+    N_detection_table2 = tables[order.index(N_date2) + 13]
+    summary_detection_table = tables[12]
+    summary_detection_table2 = tables[16]
+
+    # pasting the detection tables in word
+    paste_tables(formatted_tables[0], DR_detection_table)
+    paste_tables(formatted_tables[2], DP_detection_table)
+    paste_tables(formatted_tables[4], N_detection_table)
+    paste_tables(summary_table[0], summary_detection_table, True)
+
+    paste_tables(formatted_tables2[0], DR_detection_table2)
+    paste_tables(formatted_tables2[2], DP_detection_table2)
+    paste_tables(formatted_tables2[4], N_detection_table2)
+    paste_tables(summary_table2[0], summary_detection_table2, True)
+
+    format_document(doc, DR_date, DP_date, N_date, order)
+    doc.save(output)
 
 
 DR_path = "102_20230516_090002_DR500_wClass.xlsx"
