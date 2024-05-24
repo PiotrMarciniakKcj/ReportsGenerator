@@ -236,7 +236,7 @@ def get_test_start_text(date, point_x, point_y):
 
 
 # replace template elements with correct ones
-def format_document(document, DR_date, DP_date, N_date, order):
+def format_document(document, DR_date, DP_date, N_date, order, summary, summary2=None):
     DR_text = 'Badanie w okresie przed południem (DR500)'
     DP_text = 'Badanie w okresie po południu (DP500)'
     N_text = 'Badanie w okresie nocnym (N200)'
@@ -271,8 +271,20 @@ def format_document(document, DR_date, DP_date, N_date, order):
             paragraph.text = test_start_text_list[2]
         if 'today' in paragraph.text:
             paragraph.text = "Poznań, " + datetime.date.today().strftime("%d.%m.%Y")
+        if 'summary_d' in paragraph.text:
+            paragraph.text = check_d_and_r(summary)[0]
+        if 'summary_r' in paragraph.text:
+            paragraph.text = check_d_and_r(summary)[1]
+        if summary2 is not None:
+            if 'summary_d2' in paragraph.text:
+                paragraph.text = check_d_and_r(summary2)[0]
+            if 'summary_r2' in paragraph.text:
+                paragraph.text = check_d_and_r(summary2)[1]
+
     body_elements = document._body._body
     rs = body_elements.xpath('//w:r')
+    for r in rs:
+        print(r.text)
     # changing elements in the table of contents
     for r in rs:
         if r.text == "toc1":
@@ -312,7 +324,7 @@ def get_summary_tables(tables):
 
 
 # check and write to file whether OPZ requirements are met
-def check_d_and_r(summary, doc):
+def check_d_and_r(summary):
     check_d = True
     check_r = True
     if float(summary[0][0][3].replace(",", ".").replace("%", "")) < 99:
@@ -320,19 +332,14 @@ def check_d_and_r(summary, doc):
     if float(summary[1][0][2].replace(",", ".").replace("%", "")) < 90:
         check_r = False
     if check_d:
-        if check_r:
-            doc.add_paragraph(
-                "System spełnia wymagania OPZ w zakresie poziomów detekcji i identyfikacji tablic rejestracyjnych.")
-        else:
-            doc.add_paragraph("System spełnia wymagania OPZ w zakresie poziomów detekcji.")
-            doc.add_paragraph(
-                "System nie spełnia wymagania OPZ w zakresie poziomów identyfikacji tablic rejestracyjnych.")
-    elif check_r:
-        doc.add_paragraph("System nie spełnia wymagania OPZ w zakresie poziomów detekcji.")
-        doc.add_paragraph("System spełnia wymagania OPZ w zakresie poziomów identyfikacji tablic rejestracyjnych.")
+        summary_d_text = "System spełnia wymagania OPZ w zakresie poziomów detekcji."
     else:
-        doc.add_paragraph(
-            "System nie spełnia wymagania OPZ w zakresie poziomów detekcji i identyfikacji tablic rejestracyjnych.")
+        summary_d_text = "System nie spełnia wymagań OPZ w zakresie poziomów detekcji."
+    if check_r:
+        summary_r_text = "System spełnia wymagania OPZ w zakresie poziomów identyfikacji tablic rejestracyjnych."
+    else:
+        summary_r_text = "System nie spełnia wymagań OPZ w zakresie poziomów identyfikacji tablic rejestracyjnych."
+    return summary_d_text, summary_r_text
 
 
 # generate report with detection and identification only
@@ -359,7 +366,6 @@ def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
     doc = Document(template)
     tables = doc.tables[2:]
 
-
     # assigning correct table order
     DR_detection_table = tables[(order.index(DR_date) * 2)]
     DR_identification_table = tables[(order.index(DR_date) * 2 + 1)]
@@ -380,8 +386,7 @@ def generate_detection_and_identification_report(DR_excel, DP_excel, N_excel):
     paste_tables(summary_tables[0], summary_detection_table, True)
     paste_tables(summary_tables[1], summary_identification_table, True)
 
-    format_document(doc, DR_date, DP_date, N_date, order)
-    check_d_and_r(summary_tables, doc)
+    format_document(doc, DR_date, DP_date, N_date, order, summary_tables)
     doc.save(output)
 
 
@@ -391,9 +396,10 @@ def generate_classification_report(paths):
     DR_date = get_date(paths[0])
     DP_date = get_date(paths[1])
     N_date = get_date(paths[2])
-    DR_date2 = get_date(paths[3])
-    DP_date2 = get_date(paths[4])
-    N_date2 = get_date(paths[5])
+
+    # DR_date2 = get_date(paths[3])
+    # DP_date2 = get_date(paths[4])
+    # N_date2 = get_date(paths[5])
 
     # correct order of the tests
     order = [DR_date, DP_date, N_date]
@@ -407,11 +413,11 @@ def generate_classification_report(paths):
     formatted_tables = get_formatted_data(paths[0])
     formatted_tables.extend(get_formatted_data(paths[1]))
     formatted_tables.extend(get_formatted_data(paths[2]))
-    summary_table = get_summary_tables(formatted_tables)
+    summary_tables = get_summary_tables(formatted_tables)
     formatted_tables2 = get_formatted_data(paths[3])
     formatted_tables2.extend(get_formatted_data(paths[4]))
     formatted_tables2.extend(get_formatted_data(paths[5]))
-    summary_table2 = get_summary_tables(formatted_tables2)
+    summary_tables2 = get_summary_tables(formatted_tables2)
 
     doc = Document(template)
     tables = doc.tables[2:]
@@ -420,9 +426,9 @@ def generate_classification_report(paths):
     DR_identification_table = tables[order.index(DR_date)]
     DP_identification_table = tables[order.index(DP_date)]
     N_identification_table = tables[order.index(N_date)]
-    DR_identification_table2 = tables[order.index(DR_date2)+4]
-    DP_identification_table2 = tables[order.index(DP_date2)+4]
-    N_identification_table2 = tables[order.index(N_date2)+4]
+    DR_identification_table2 = tables[order.index(DR_date) + 4]
+    DP_identification_table2 = tables[order.index(DP_date) + 4]
+    N_identification_table2 = tables[order.index(N_date) + 4]
     summary_identification_table = tables[3]
     summary_identification_table2 = tables[7]
 
@@ -430,40 +436,47 @@ def generate_classification_report(paths):
     paste_tables(formatted_tables[1], DR_identification_table)
     paste_tables(formatted_tables[3], DP_identification_table)
     paste_tables(formatted_tables[5], N_identification_table)
-    paste_tables(summary_table[1], summary_identification_table, True)
+    paste_tables(summary_tables[1], summary_identification_table, True)
 
     paste_tables(formatted_tables2[1], DR_identification_table2)
     paste_tables(formatted_tables2[3], DP_identification_table2)
     paste_tables(formatted_tables2[5], N_identification_table2)
-    paste_tables(summary_table2[1], summary_identification_table2, True)
+    paste_tables(summary_tables2[1], summary_identification_table2, True)
 
     # getting the detection tables in word
-    DR_detection_table = tables[order.index(DR_date)+9]
-    DP_detection_table = tables[order.index(DP_date)+9]
-    N_detection_table = tables[order.index(N_date)+9]
-    DR_detection_table2 = tables[order.index(DR_date2) + 13]
-    DP_detection_table2 = tables[order.index(DP_date2) + 13]
-    N_detection_table2 = tables[order.index(N_date2) + 13]
-    summary_detection_table = tables[12]
-    summary_detection_table2 = tables[16]
+    DR_detection_table = tables[order.index(DR_date) + 8]
+    DP_detection_table = tables[order.index(DP_date) + 8]
+    N_detection_table = tables[order.index(N_date) + 8]
+    DR_detection_table2 = tables[order.index(DR_date) + 12]
+    DP_detection_table2 = tables[order.index(DP_date) + 12]
+    N_detection_table2 = tables[order.index(N_date) + 12]
+    summary_detection_table = tables[11]
+    summary_detection_table2 = tables[15]
 
     # pasting the detection tables in word
     paste_tables(formatted_tables[0], DR_detection_table)
     paste_tables(formatted_tables[2], DP_detection_table)
     paste_tables(formatted_tables[4], N_detection_table)
-    paste_tables(summary_table[0], summary_detection_table, True)
+    paste_tables(summary_tables[0], summary_detection_table, True)
 
     paste_tables(formatted_tables2[0], DR_detection_table2)
     paste_tables(formatted_tables2[2], DP_detection_table2)
     paste_tables(formatted_tables2[4], N_detection_table2)
-    paste_tables(summary_table2[0], summary_detection_table2, True)
+    paste_tables(summary_tables2[0], summary_detection_table2, True)
 
-    format_document(doc, DR_date, DP_date, N_date, order)
+    format_document(doc, DR_date, DP_date, N_date, order, summary_tables, summary_tables2)
     doc.save(output)
 
 
-DR_path = "102_20230516_090002_DR500_wClass.xlsx"
-DP_path = "102_20230516_140007_DP500_wClass.xlsx"
-N_path = "102_20230515_210000_N200_wClass.xlsx"
+# DR_path = "102_20230516_090002_DR500_wClass.xlsx"
+# DP_path = "102_20230516_140007_DP500_wClass.xlsx"
+# N_path = "102_20230515_210000_N200_wClass.xlsx"
+# generate_detection_and_identification_report(DR_excel=DR_path, DP_excel=DP_path, N_excel=N_path)
 
-generate_detection_and_identification_report(DR_path, DP_path, N_path)
+DR_path = "54_20230524_050101_DR500_wClass.xlsx"
+DP_path = "54_20230523_123001_DP500_wClass.xlsx"
+N_path = "54_20230523_205800_N200_wClass.xlsx"
+DR_path2 = "55_20230524_050000_DR500_wClass.xlsx"
+DP_path2 = "55_20230523_123000_DP500_wClass.xlsx"
+N_path2 = "55_20230523_205804_N200_wClass.xlsx"
+generate_classification_report([DR_path, DP_path, N_path, DR_path2, DP_path2, N_path2])
