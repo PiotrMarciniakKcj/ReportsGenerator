@@ -283,8 +283,6 @@ def format_document(document, DR_date, DP_date, N_date, order, summary, summary2
 
     body_elements = document._body._body
     rs = body_elements.xpath('//w:r')
-    for r in rs:
-        print(r.text)
     # changing elements in the table of contents
     for r in rs:
         if r.text == "toc1":
