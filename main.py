@@ -1,7 +1,7 @@
 import datetime as datetime
 from calendar import monthcalendar
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
 from openpyxl import load_workbook
 from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -23,27 +23,37 @@ def enumerate_sheet(worksheet, max_val):
     for i, i_row in enumerate(worksheet):
         if i_row[max_val].value == "Suma:":
             return str(i + 1)
+        if i_row[max_val].value == "Suma":
+            return str(i + 10)
 
 
 # return formatted tables from an Excel file
-def get_formatted_data(path):
+def get_formatted_data(path, classification=False):
     wb = load_workbook(path)
-    sheet = wb.worksheets[0]
-    tables_from_excel = [format_data("I2:N" + enumerate_sheet(sheet, 9), path),
-                         format_data("R2:X" + enumerate_sheet(sheet, 18), path)]
+
+    if classification is False:
+        sheet = wb.worksheets[0]
+        tables_from_excel = [format_data("I2:N" + enumerate_sheet(sheet, 9), path),
+                             format_data("R2:X" + enumerate_sheet(sheet, 18), path)]
+    else:
+        sheet = wb.worksheets[1]
+        tables_from_excel = [format_data("M1:T" + enumerate_sheet(sheet, 13), path, True),
+                             format_data("V1:AC" + enumerate_sheet(sheet, 22), path, True)]
     return tables_from_excel
 
 
 # return formatted table(without headers) from Excel as a 2-dimensional array from an index input
-def format_data(indexes, path):
+def format_data(indexes, path, classification=False):
     wb = load_workbook(path)
-    sheet = wb.worksheets[0]
+    if classification is False:
+        sheet = wb.worksheets[0]
+    else:
+        sheet = wb.worksheets[1]
     input_table = sheet[indexes]
     new_table = []
     for row in input_table:
         temp_row = []
-        if row[0].value == row[-1].value:
-            # skip empty rows
+        if classification is False and row[0].value == row[-1].value:
             continue
         for cell in row:
             cell = cell.value
@@ -53,7 +63,8 @@ def format_data(indexes, path):
                 cell = cell.strftime("%H:%M:%S")
             temp_row.append(cell)
         row = temp_row
-        row[len(row) - 1] = float_to_percent(float(row[len(row) - 1]))
+        if row[len(row) - 1] not in ("-", "%", ""):
+            row[len(row) - 1] = float_to_percent(float(row[len(row) - 1]))
         new_table.append(row)
     return new_table
 
@@ -66,18 +77,51 @@ def get_date(filename):
     return date
 
 
+def remove_row(table, row):
+    tbl = table._tbl
+    tr = row._tr
+    tbl.remove(tr)
+
+
 # copy the contents of the tables from Excel and paste them into the word template
-def paste_tables(formated_data, table_name, is_summary=False):
-    for data_row in formated_data:
+def paste_tables(formatted_data, table_name, is_summary=False, is_classification=False, is_cost323=False):
+    for i, data_row in enumerate(formatted_data):
         if is_summary:
             for x in range(0, 2):
                 table_name.rows[x].height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-                table_name.rows[x].height = Cm(0.7)
+                table_name.rows[x].height = Cm(1)
+                for y in range(0, 4):
+                    table_name.rows[x].cells[y].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             row = table_name.rows[1].cells
             for x in range(0, 4):
                 row[x].text = str(data_row[x])
                 row[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 row[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        elif is_classification:
+            table_row = table_name.add_row()
+            table_row.height = Cm(0.5)
+            table_row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
+            for x in range(0, len(data_row)):
+                table_row.cells[x].text = str(data_row[x])
+                table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+                table_row.cells[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                paragraphs = table_row.cells[x].paragraphs
+                paragraph = paragraphs[0]
+                run_obj = paragraph.runs
+                run = run_obj[0]
+                font = run.font
+                font.size = Pt(8)
+            if is_cost323:
+                total = 10
+            else:
+                total = 11
+            for y in range(0, len(table_name.rows) // total):
+                for z in range(0, 2):
+                    a = table_name.rows[y * total + 1 + (total - 1) % 2].cells[z]
+                    b = table_name.rows[y * total + total-1].cells[z]
+                    a.merge(b)
+                    a.text = a.text.strip()
+                    a.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
         else:
             table_row = table_name.add_row()
             table_row.height = Cm(0.5)
@@ -86,6 +130,18 @@ def paste_tables(formated_data, table_name, is_summary=False):
                 table_row.cells[x].text = str(data_row[x])
                 table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                 table_row.cells[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if is_classification:
+        remove_row(table_name, table_name.rows[0])
+        widths = (Cm(1.5), Cm(1.5), Cm(4.4), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
+        table_name.allow_autofit = False
+        table_name.autofit = False
+        for row in table_name.rows:
+            for idx, width in enumerate(widths):
+                row.cells[idx].width = width
+        for idx, col in enumerate(table_name.columns):
+            col.width = widths[idx]
+        if is_cost323:
+            remove_row(table_name, table_name.rows[-1])
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
 
 
@@ -186,26 +242,6 @@ def get_weather(date, x_coordinate, y_coordinate):
         print('Error: ', FirstRow)
 
     print()
-
-
-'''
-# get temperature
-def get_temperature(date, point_x, point_y, point_z=None):
-    stations = Stations()
-    stations = stations.nearby(point_x, point_y, point_z)
-    station = stations.fetch(1)
-    start = date - timedelta(days=1)
-    end = date + timedelta(days=1)
-    data = Hourly(station, start, end)
-    data = data.fetch()
-
-    differences = [abs(date - time) for time in data.index]
-    minimum = min(differences)
-    closest_date = data.index[differences.index(minimum)]
-
-    temperature = data.loc[closest_date]['temp']
-    return round(temperature)
-'''
 
 
 # get last sunday of the month
@@ -411,10 +447,16 @@ def generate_classification_report(paths):
     formatted_tables = get_formatted_data(paths[0])
     formatted_tables.extend(get_formatted_data(paths[1]))
     formatted_tables.extend(get_formatted_data(paths[2]))
+    classification_tables = get_formatted_data(paths[0], True)
+    classification_tables.extend(get_formatted_data(paths[1], True))
+    classification_tables.extend(get_formatted_data(paths[2], True))
     summary_tables = get_summary_tables(formatted_tables)
     formatted_tables2 = get_formatted_data(paths[3])
     formatted_tables2.extend(get_formatted_data(paths[4]))
     formatted_tables2.extend(get_formatted_data(paths[5]))
+    classification_tables2 = get_formatted_data(paths[3], True)
+    classification_tables2.extend(get_formatted_data(paths[4], True))
+    classification_tables2.extend(get_formatted_data(paths[5], True))
     summary_tables2 = get_summary_tables(formatted_tables2)
 
     doc = Document(template)
@@ -442,25 +484,29 @@ def generate_classification_report(paths):
     paste_tables(summary_tables2[1], summary_identification_table2, True)
 
     # getting the detection tables in word
-    DR_detection_table = tables[order.index(DR_date) + 8]
-    DP_detection_table = tables[order.index(DP_date) + 8]
-    N_detection_table = tables[order.index(N_date) + 8]
-    DR_detection_table2 = tables[order.index(DR_date) + 12]
-    DP_detection_table2 = tables[order.index(DP_date) + 12]
-    N_detection_table2 = tables[order.index(N_date) + 12]
-    summary_detection_table = tables[11]
-    summary_detection_table2 = tables[15]
+    DR_detection_table = tables[order.index(DR_date) + 10]
+    DP_detection_table = tables[order.index(DP_date) + 10]
+    N_detection_table = tables[order.index(N_date) + 10]
+    e = tables[8]
+    f = tables[9]
+    DR_detection_table2 = tables[order.index(DR_date) + 14]
+    DP_detection_table2 = tables[order.index(DP_date) + 14]
+    N_detection_table2 = tables[order.index(N_date) + 14]
+    summary_detection_table = tables[13]
+    summary_detection_table2 = tables[17]
 
+    paste_tables(classification_tables[0], e, is_classification=True)
+    paste_tables(classification_tables[1], f, is_classification=True, is_cost323=True)
     # pasting the detection tables in word
     paste_tables(formatted_tables[0], DR_detection_table)
     paste_tables(formatted_tables[2], DP_detection_table)
     paste_tables(formatted_tables[4], N_detection_table)
-    paste_tables(summary_tables[0], summary_detection_table, True)
+    paste_tables(summary_tables[0], summary_detection_table, is_summary=True)
 
     paste_tables(formatted_tables2[0], DR_detection_table2)
     paste_tables(formatted_tables2[2], DP_detection_table2)
     paste_tables(formatted_tables2[4], N_detection_table2)
-    paste_tables(summary_tables2[0], summary_detection_table2, True)
+    paste_tables(summary_tables2[0], summary_detection_table2, is_summary=True)
 
     format_document(doc, DR_date, DP_date, N_date, order, summary_tables, summary_tables2)
     doc.save(output)
