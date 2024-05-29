@@ -111,14 +111,14 @@ def paste_tables(formatted_data, table_name, is_summary=False, is_classification
                 run = run_obj[0]
                 font = run.font
                 font.size = Pt(8)
-            if is_cost323:
-                total = 10
-            else:
-                total = 11
-            for y in range(0, len(table_name.rows) // total):
+
+            for y in range(0, len(table_name.rows) // 11):
                 for z in range(0, 2):
-                    a = table_name.rows[y * total + 1 + (total - 1) % 2].cells[z]
-                    b = table_name.rows[y * total + total-1].cells[z]
+                    a = table_name.rows[y * 11 + 1].cells[z]
+                    if is_cost323:
+                        b = table_name.rows[y * 11 + 9].cells[z]
+                    else:
+                        b = table_name.rows[y * 11 + 10].cells[z]
                     a.merge(b)
                     a.text = a.text.strip()
                     a.paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -132,7 +132,7 @@ def paste_tables(formatted_data, table_name, is_summary=False, is_classification
                 table_row.cells[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     if is_classification:
         remove_row(table_name, table_name.rows[0])
-        widths = (Cm(1.5), Cm(1.5), Cm(4.4), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
+        widths = (Cm(2), Cm(2), Cm(5), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
         table_name.allow_autofit = False
         table_name.autofit = False
         for row in table_name.rows:
@@ -484,19 +484,28 @@ def generate_classification_report(paths):
     paste_tables(summary_tables2[1], summary_identification_table2, True)
 
     # getting the detection tables in word
-    DR_detection_table = tables[order.index(DR_date) + 10]
-    DP_detection_table = tables[order.index(DP_date) + 10]
-    N_detection_table = tables[order.index(N_date) + 10]
-    e = tables[8]
-    f = tables[9]
-    DR_detection_table2 = tables[order.index(DR_date) + 14]
-    DP_detection_table2 = tables[order.index(DP_date) + 14]
-    N_detection_table2 = tables[order.index(N_date) + 14]
-    summary_detection_table = tables[13]
-    summary_detection_table2 = tables[17]
+    DR_detection_table = tables[order.index(DR_date)*3 + 10]
+    DP_detection_table = tables[order.index(DP_date)*3 + 10]
+    N_detection_table = tables[order.index(N_date)*3 + 10]
+    summary_detection_table = tables[19]
 
-    paste_tables(classification_tables[0], e, is_classification=True)
-    paste_tables(classification_tables[1], f, is_classification=True, is_cost323=True)
+    DR_detection_table2 = tables[order.index(DR_date)*3 + 22]
+    DP_detection_table2 = tables[order.index(DP_date)*3 + 22]
+    N_detection_table2 = tables[order.index(N_date)*3 + 22]
+    summary_detection_table2 = tables[31]
+
+    # pasting the classification tables in word
+    for i in range(3):
+        paste_tables(classification_tables[i * 2], tables[3 * i + 8], is_classification=True)
+        paste_tables(classification_tables[i * 2 + 1], tables[3 * i + 9], is_classification=True, is_cost323=True)
+    # paste_tables(, tables[17], is_classification=True)
+    # paste_tables(, tables[18], is_classification=True, is_cost323=True)
+    for i in range(3):
+        paste_tables(classification_tables2[i * 2], tables[3 * i + 20], is_classification=True)
+        paste_tables(classification_tables2[i * 2 + 1], tables[3 * i + 21], is_classification=True, is_cost323=True)
+    # paste_tables(, tables[29], is_classification=True)
+    # paste_tables(, tables[30], is_classification=True, is_cost323=True)
+
     # pasting the detection tables in word
     paste_tables(formatted_tables[0], DR_detection_table)
     paste_tables(formatted_tables[2], DP_detection_table)
