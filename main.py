@@ -44,7 +44,7 @@ def get_formatted_classification_data(path):
 
 
 def get_formatted_classification_summary_data(path):
-    tables_from_excel = [format_data("C34:H43", path, True), format_data("L34:Q43", path, True)]
+    tables_from_excel = [format_data("C35:H43", path, True), format_data("L35:Q42", path, True)]
     return tables_from_excel
 
 
@@ -174,26 +174,29 @@ def paste_summary_table(formatted_data, table_name):
 
 def paste_classification_summary_table(formatted_data, table_name):
     for i, data_row in enumerate(formatted_data):
-        for x in range(8):
-            table_name.rows[x].height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-            table_name.rows[x].height = Cm(1)
-            for y in range(6):
-                table_name.rows[x].cells[y].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        row = table_name.rows[i+1].cells
-        for x in range(6):
-            row[x].text = str(data_row[x])
-            row[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            row[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-    remove_row(table_name, table_name.rows[0])
+        table_row = table_name.add_row()
+        table_row.height = Cm(1)
+        table_row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
+        for x in range(len(data_row)):
+            table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        for x in range(len(data_row)):
+            table_row.cells[x].text = str(data_row[x])
+            table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            table_row.cells[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+
     #widths = (Cm(2), Cm(2), Cm(5), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
     #for row in table_name.rows:
         #for idx, width in enumerate(widths):
         #    row.cells[idx].width = width
 
+
     #for idx, col in enumerate(table_name.columns):
         #col.width = widths[idx]
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
-def paste_cost323_classification_summary_table(formatted_data, table_name):
+'''
+def paste_cost323_classification_summary_table(formatted
+    _data, table_name):
     for i, data_row in enumerate(formatted_data):
         for x in range(8):
             table_name.rows[x].height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
@@ -201,7 +204,7 @@ def paste_cost323_classification_summary_table(formatted_data, table_name):
             for y in range(6):
                 table_name.rows[x].cells[y].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
         row = table_name.rows[i+1].cells
-        for x in range(6):
+        for x in range(5):
             row[x].text = str(data_row[x])
             row[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
             row[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
@@ -214,6 +217,7 @@ def paste_cost323_classification_summary_table(formatted_data, table_name):
     #for idx, col in enumerate(table_name.columns):
         #col.width = widths[idx]
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
+'''
 '''
 def paste_cost323_classification_summary_table(formatted_data, table_name):
     for i, data_row in enumerate(formatted_data):
@@ -612,9 +616,11 @@ def generate_classification_report(paths):
         paste_cost323_classification_tables(classification_tables2[i * 2 + 1], tables[3 * i + 21])
 
     paste_classification_summary_table(classification_summary_tables[0], tables[17])
-    paste_cost323_classification_summary_table(classification_summary_tables[1], tables[18])
+    paste_classification_summary_table(classification_summary_tables[1], tables[18])
+    #paste_cost323_classification_summary_table(classification_summary_tables[1], tables[18])
     paste_classification_summary_table(classification_summary_tables2[0], tables[29])
-    paste_cost323_classification_summary_table(classification_summary_tables2[1], tables[30])
+    paste_classification_summary_table(classification_summary_tables2[1], tables[30])
+    #paste_cost323_classification_summary_table(classification_summary_tables2[1], tables[30])
 
     # pasting the detection tables in word
     paste_table(formatted_tables[0], DR_detection_table)
