@@ -105,6 +105,7 @@ def paste_classification_tables(formatted_data, table_name):
             font = run.font
             font.size = Pt(8)
 
+
         for y in range(0, len(table_name.rows) // 11):
             for z in range(0, 2):
                 a = table_name.rows[y * 11 + 1].cells[z]
@@ -172,76 +173,19 @@ def paste_summary_table(formatted_data, table_name):
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
 
 
+
+# naglowki sie usuwaja
 def paste_classification_summary_table(formatted_data, table_name):
     for i, data_row in enumerate(formatted_data):
         table_row = table_name.add_row()
         table_row.height = Cm(1)
         table_row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
         for x in range(len(data_row)):
-            table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        for x in range(len(data_row)):
             table_row.cells[x].text = str(data_row[x])
             table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             table_row.cells[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-
-    #widths = (Cm(2), Cm(2), Cm(5), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
-    #for row in table_name.rows:
-        #for idx, width in enumerate(widths):
-        #    row.cells[idx].width = width
-
-
-    #for idx, col in enumerate(table_name.columns):
-        #col.width = widths[idx]
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
-'''
-def paste_cost323_classification_summary_table(formatted
-    _data, table_name):
-    for i, data_row in enumerate(formatted_data):
-        for x in range(8):
-            table_name.rows[x].height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-            table_name.rows[x].height = Cm(1)
-            for y in range(6):
-                table_name.rows[x].cells[y].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        row = table_name.rows[i+1].cells
-        for x in range(5):
-            row[x].text = str(data_row[x])
-            row[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            row[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-    remove_row(table_name, table_name.rows[0])
-    #widths = (Cm(2), Cm(2), Cm(5), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
-    #for row in table_name.rows:
-        #for idx, width in enumerate(widths):
-        #    row.cells[idx].width = width
 
-    #for idx, col in enumerate(table_name.columns):
-        #col.width = widths[idx]
-    table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
-'''
-'''
-def paste_cost323_classification_summary_table(formatted_data, table_name):
-    for i, data_row in enumerate(formatted_data):
-        for x in range(0, 2):
-            table_name.rows[x].height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-            table_name.rows[x].height = Cm(1)
-            for y in range(0, 4):
-                table_name.rows[x].cells[y].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        row = table_name.rows[1].cells
-        for x in range(0, 4):
-            row[x].text = str(data_row[x])
-            row[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            row[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-    remove_row(table_name, table_name.rows[0])
-
-    #widths = (Cm(2), Cm(2), Cm(5), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3), Cm(1.3))
-    #for row in table_name.rows:
-    #    for idx, width in enumerate(widths):
-    #        row.cells[idx].width = width
-    #for idx, col in enumerate(table_name.columns):
-    #    col.width = widths[idx]
-    remove_row(table_name, table_name.rows[-1])
-    table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
-'''
 
 # copy the contents of the tables from Excel and paste them into the word template
 def paste_table(formatted_data, table_name):
