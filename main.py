@@ -178,13 +178,17 @@ def paste_summary_table(formatted_data, table_name):
 def paste_classification_summary_table(formatted_data, table_name):
     for i, data_row in enumerate(formatted_data):
         table_row = table_name.add_row()
-        table_row.height = Cm(1)
+        table_row.height = Cm(0.7)
         table_row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
         for x in range(len(data_row)):
             table_row.cells[x].text = str(data_row[x])
             table_row.cells[x].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
             table_row.cells[x].paragraphs[0].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     table_name.alignment = WD_TABLE_ALIGNMENT.CENTER
+    widths = (Cm(6), Cm(2), Cm(2), Cm(2), Cm(2), Cm(2))
+    for row in table_name.rows:
+        for idx, width in enumerate(widths):
+            row.cells[idx].width = width
 
 
 # copy the contents of the tables from Excel and paste them into the word template
